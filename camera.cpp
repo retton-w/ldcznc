@@ -117,7 +117,7 @@ bool Camera::UserPtrInit(void)
 	struct v4l2_buffer buf;
 
 	for (unsigned int bufIndex = 0; bufIndex < _maxNumBufs; bufIndex++) {
-
+	
 		pCapBufs[bufIndex].index	= bufIndex;
 		pCapBufs[bufIndex].width	= _width;
 		pCapBufs[bufIndex].height	= _height;

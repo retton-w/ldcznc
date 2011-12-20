@@ -1,5 +1,6 @@
 
 #include "camera_500w.h"
+#include "common.h"
 #include <iostream>
 #include <errno.h>
 #include <sys/ioctl.h>
@@ -16,13 +17,11 @@ const unsigned int NUM_IOCTL_RETIES = 100;
 
 Camera500W::Camera500W()
 {
-	int extra = 64;
-
 	VideoSize size;
-	size.width	= 2432;
-	size.height	= 2048 + extra;
-	size.stride	= 2432;
-	size.line	= size.stride * 2;
+	size.width	= CAMERA_500W_WIDTH;
+	size.height	= CAMERA_500W_HEIGHT + CAMERA_OVERLAY_HEIGHT;
+	size.stride	= CAMERA_500W_STRIDE;
+	size.line	= CAMERA_500W_LINE;
 	SetCaptureSize(size);
 
 	_maxNumBufs	= CAPTURE_NUM_BUFFER;

@@ -56,7 +56,9 @@ CXXSRCS := camera.cpp \
 	   tcp_client.cpp \
 	   tcp_server.cpp \
 	   udp_server.cpp \
+	   mutex.cpp \
 	   peripherral_manage.cpp \
+	   arbiter.cpp \
 	   test.cpp
 
 CXXOBJS := $(CXXSRCS:.cpp=.o)

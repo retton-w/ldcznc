@@ -30,9 +30,6 @@
 int NetPacket::Init(TcpClient *client)
 {
 	_client = client;
-	processor = new ImageProcess();
-	processor->Start();		//启动图像处理线程
-
 	return 0;
 }
 
@@ -40,18 +37,12 @@ int NetPacket::Init(TcpClient *client)
 NetPacket::NetPacket()
 {
 	_client = NULL;
-	processor = NULL;
 }
 
 
-NetPacket::~NetPacket() {
-
+NetPacket::~NetPacket()
+{
 	_client = NULL;
-		
-	if (processor) {
-		delete processor;
-		processor = NULL;
-	}
 }
 
 
@@ -286,10 +277,10 @@ int NetPacket::ProcessImgMode(struct payload_req *req, char *buf)
         switch (req->type & REQ_TYPE_CMD_MASK) {
 		case REQ_IMG_MODE_LIVE :
 			Sensor::GetInstance()->SetSensorVideo();
-			processor->SetStatus(VIDEO);
+			//processor->SetStatus(VIDEO);
 			break;
 		case REQ_IMG_MODE_TRIG :
-			processor->SetStatus(CAPTURE);
+			//processor->SetStatus(CAPTURE);
 			Sensor::GetInstance()->SetSensorCapture();
 			break;
 		default:

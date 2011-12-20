@@ -242,7 +242,6 @@ void TcpClient::Run()
 		}
         }
 	
-	Terminate();
 	ClearBuffer();
 	local_sock = -1;
 	_connected_status = false;

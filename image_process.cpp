@@ -2,55 +2,48 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
 
 #include "image_buffer.h"
 #include "image_process.h"
-#include "sensor.h"
 #include "overlay.h"
-
 #include "ldspmil.h"
+#include "common.h"
 
 
 ImageProcess::ImageProcess()
 {
 	Init();
-	
-	_status = CAPTURE;
-
-	_pCamera = CameraFactory::Create500WCamera();
-	_pCamera->CameraInit();
-	int handle = _pCamera->GetCameraHandle();
-	Sensor::GetInstance()->SetSensorHandle(handle);
-	Sensor::GetInstance()->SetSensorCapture();
-	
-	resize_buffer.width	= 1216;
-	resize_buffer.height	= 1024;
-	resize_buffer.stride	= 1216;
-	resize_buffer.line	= 2432;
-	resize_buffer.extra_size= 0;
-	buffer_create(&resize_buffer);
 }
 
 
 void ImageProcess::Init()
 {
 	struct overlay_font overlay_font;
-	overlay_font.name      = "simsun.ttc";
-        overlay_font.size      = 28;
+	overlay_font.name      = FONT_NAME;
+        overlay_font.size      = FONT_SIZE;
 	overlay_init(&overlay_font);
 	
-	_param.width	= 2432;
-	_param.height	= 2112;
-	_param.stride	= 2432; 
-	_param.qvalue	= 90;
+	_param.width	= CAMERA_500W_WIDTH;
+	_param.height	= CAMERA_500W_HEIGHT + CAMERA_OVERLAY_HEIGHT;
+	_param.stride	= CAMERA_500W_STRIDE;
+	_param.qvalue	= DEFAULT_JPEG_QVALUE;
 	jpeg_init(&_param);
+	printf("init jpeg\n");
 
 	rsz_handle = Resize::ResizeCreate();
 	if (rsz_handle == NULL) {
 		printf("resize create failed\n");
 	}
+	
+	_status = CAPTURE;
+
+	resize_buffer.width	= RESIZER_WIDTH;
+	resize_buffer.height	= RESIZER_HEIGHT;
+	resize_buffer.stride	= RESIZER_STRIDE;
+	resize_buffer.line	= RESIZER_LINE;
+	resize_buffer.extra_size= 0;
+	buffer_create(&resize_buffer);
 }
 
 
@@ -66,18 +59,18 @@ ImageProcess::~ImageProcess()
 
 void ImageProcess::SetJpegFullSize()
 {
-	_param.width	= 2432;
-	_param.height	= 2112;
-	_param.stride	= 2432; 
+	_param.width	= CAMERA_500W_WIDTH;
+	_param.height	= CAMERA_500W_HEIGHT + CAMERA_OVERLAY_HEIGHT;
+	_param.stride	= CAMERA_500W_STRIDE; 
 	set_jpegenc_param(&_param);	
 }
 
 
 void ImageProcess::SetJpegHalfSize()
 {
-	_param.width	= 1216;
-	_param.height	= 1024;
-	_param.stride	= 1216;
+	_param.width	= RESIZER_WIDTH;
+	_param.height	= RESIZER_HEIGHT;
+	_param.stride	= RESIZER_STRIDE;
 	set_jpegenc_param(&_param);
 }
 
@@ -116,7 +109,6 @@ void ImageProcess::GetWatermark(char* pWmcode)
 	}
 
 	pcode[bytWmlong] = '\0';
-
 }
 
 
@@ -153,29 +145,38 @@ bool ImageProcess::JpegEncodeProcess(struct cmemBuffer &imageInfo, struct cmemBu
 }
 
 
+/**
+ * @fn		bool Resize(struct cmemBuffer *imageInfo,
+ * 			    struct cmemBuffer *outBuffer)
+ *
+ * @brief	将500W的图像缩小成1216 * 1024分辨率
+ *
+ * @param	[in] imageInfo
+ * @param	[out] outBuffer
+ *
+ * @return	是否resize成功
+ * @retval	true | false
+ */
 bool ImageProcess::Resize(struct cmemBuffer *imageInfo, struct cmemBuffer *outBuffer)
 {
-
-
-	int input_height	= imageInfo->height;
-	int input_width		= imageInfo->width;
-	int output_height	= outBuffer->height;
-	int output_width	= outBuffer->width;
+	int input_height  = imageInfo->height;
+	int input_width	  = imageInfo->width;
+	int output_height = outBuffer->height;
+	int output_width  = outBuffer->width;
 
 	imageInfo->width  = imageInfo->width / 2;
-	imageInfo->height = (imageInfo->height > 2048) ? 2048: imageInfo->height;
+	imageInfo->height = (imageInfo->height > CAMERA_500W_HEIGHT) ? CAMERA_500W_HEIGHT: imageInfo->height;
 	imageInfo->size   = imageInfo->height * imageInfo->line;
 	imageInfo->offset = 0;
-
 	outBuffer->width  = outBuffer->width / 2;
 	outBuffer->offset = 0;
-	Resize::ResizeConfig(rsz_handle, imageInfo, outBuffer, NULL);
+	Resize::ResizeConfig(rsz_handle, imageInfo, outBuffer, NULL);	//配置resizer
 
-	Resize::ResizeExecute(rsz_handle, imageInfo, outBuffer, NULL);
+	Resize::ResizeExecute(rsz_handle, imageInfo, outBuffer, NULL);	//左半图像resize
 
 	imageInfo->offset = imageInfo->width * 2;
 	outBuffer->offset = outBuffer->width * 2;
-	Resize::ResizeExecute(rsz_handle, imageInfo, outBuffer, NULL);
+	Resize::ResizeExecute(rsz_handle, imageInfo, outBuffer, NULL);	//右半图像resize
 
 	outBuffer->width  = output_width;
 	outBuffer->height = output_height; 
@@ -188,98 +189,30 @@ bool ImageProcess::Resize(struct cmemBuffer *imageInfo, struct cmemBuffer *outBu
 }
 
 
-void ImageProcess::Run()
+void ImageProcess::VideoProcess(struct cmemBuffer *buffer,
+				struct image_buffer_description *image)
+
 {
-	struct cmemBuffer *pBuffer;
-	CaptureStatus last_status = CAPTURE;
-	FILE *fp;
-
-	_pCamera->StartCapture();
-
-	while (!IsTerminated()) {
-
-		if (last_status != _status) {
-			last_status = _status;
-			if (_status == VIDEO) {
-				printf("set half size\n");
-				SetJpegHalfSize();
-			} else {
-				printf("set full size\n");
-				SetJpegFullSize();
-			}
-			usleep(5000);
-			continue;
-		}
-
-		if (_pCamera->GetCaptureBuffer(&pBuffer)) {
-
-			printf("get Buffer from driver\n");
-			switch (last_status) {
-			case VIDEO:
-				printf("VIDEO\n");
-				VideoProcess(pBuffer);
-				break;
-			case CAPTURE:
-				usleep(10);
-				fp = fopen("origin.yuv", "wb");
-				fwrite((char *)pBuffer->vir_addr,2432 * 2049 * 2, 1, fp);
-				fclose(fp);
-				CaptureProcess(pBuffer);
-				printf("CAPTURE\n");
-				break;
-			default:
-				break;
-			}
-			_pCamera->PutCaptureBuffer(pBuffer);
-
-		} else {
-			usleep(15000);
-			//printf("can't get Buffer from driver\n");
-		}
+	if (_status == CAPTURE) {
+		_status = VIDEO;
+		SetJpegHalfSize();
+		usleep(2000);
 	}
 
-	_pCamera->CameraCleanup();
-
-	return;
+	Resize(buffer, &resize_buffer);
+	JpegEncodeProcess(resize_buffer, &image->info);
 }
 
 
-void ImageProcess::SetStatus(CaptureStatus status)
+void ImageProcess::CaptureProcess(struct cmemBuffer *buffer,
+				  struct image_buffer_description *image)
 {
-	
-	_status = status;
-}
-
-
-void ImageProcess::VideoProcess(struct cmemBuffer *buffer)
-{
-	
-	struct image_buffer_description *image = NULL;
-
-	if (capture_buffer_alloc(&image) == 0) {
-	
-		printf("get image buffer from list\n");
-		Resize(buffer, &resize_buffer);
-		JpegEncodeProcess(resize_buffer, &image->info);
-
-		transport_buffer_put(image);
-		//capture_buffer_free(image);
-		image = NULL;
+	if (_status == VIDEO) {
+		_status = CAPTURE;
+		SetJpegFullSize();
+		usleep(2000);
 	}
-}
 
-
-void ImageProcess::CaptureProcess(struct cmemBuffer *buffer)
-{
-	struct image_buffer_description *image = NULL;
-	if (capture_buffer_alloc(&image) == 0) {
-
-		printf("func: %s, get image buffer from list\n", __func__);
-		JpegEncodeProcess(*buffer, &image->info);
-
-		//capture_buffer_free(image);
-		transport_buffer_put(image);
-		image = NULL;
-	}
+	JpegEncodeProcess(*buffer, &image->info);
 }
 

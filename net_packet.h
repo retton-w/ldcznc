@@ -5,7 +5,6 @@
 #include "ldczn_protocol.h"
 
 class TcpClient;
-class ImageProcess;
 
 class NetPacket {
 
@@ -37,8 +36,6 @@ private:
 	
 
 	TcpClient *_client;
-	ImageProcess *processor;
-
 };
 
 #endif

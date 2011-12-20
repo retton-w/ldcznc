@@ -7,6 +7,7 @@
 
 #include "tcp_server.h"
 #include "udp_server.h"
+#include "arbiter.h"
 
 
 int main(int argc, char *argv[])
@@ -15,6 +16,7 @@ int main(int argc, char *argv[])
 	TcpClient *tcp_client = new TcpClient();
 	TcpServer *tcp_server = new TcpServer(tcp_client);
 	UdpServer udp_server;
+	Arbiter *arbiter = new Arbiter();
 
 	struct env_image_buffer env_image_buffer;
 
@@ -31,11 +33,23 @@ int main(int argc, char *argv[])
 	tcp_server->Start();
 	printf("start Tcp Server\n");
 	udp_server.Start();
+	arbiter->Start();
+
 
 	while(1) {
 
 		sleep(10);
 	}
+
+	arbiter->Terminate();
+	udp_server.Terminate();
+	tcp_server->Terminate();
+	tcp_client->Terminate();
+	
+	arbiter->Join();
+	udp_server.Join();
+	tcp_server->Join();
+	tcp_client->Join();
 
 	return 0;
 }

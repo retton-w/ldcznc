@@ -1,0 +1,20 @@
+#ifndef _COMMON_H_
+#define _COMMON_H_
+
+#define DEFAULT_JPEG_QVALUE	90
+#define CAMERA_500W_WIDTH	2432
+#define CAMERA_500W_HEIGHT	2048
+#define CAMERA_500W_STRIDE	2432
+#define CAMERA_500W_LINE	((CAMERA_500W_WIDTH) * 2)
+#define CAMERA_OVERLAY_HEIGHT	64
+
+#define RESIZER_WIDTH		1216
+#define RESIZER_HEIGHT		1024
+#define RESIZER_STRIDE		1216
+#define RESIZER_LINE		2432
+
+#define FONT_NAME		"simsun.ttc"
+#define FONT_SIZE		28
+
+#endif
+
