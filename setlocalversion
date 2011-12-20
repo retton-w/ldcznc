@@ -1,0 +1,40 @@
+#!/bin/sh
+# Print additional version information for non-release trees.
+
+usage() {
+	echo "Usage: $0 [srctree]" >&2
+	exit 1
+}
+
+cd "${1:-.}" || usage
+
+# Check for git and a git repo.
+if head=`git rev-parse --verify HEAD 2>/dev/null`; then
+	# Do we have an untagged version?
+	if git name-rev --tags HEAD | grep -E '^HEAD[[:space:]]+(.*~[0-9]*|undefined)$' > /dev/null; then
+		printf '%s%s' -g `echo "$head" | cut -c1-8`
+	fi
+
+	# Are there uncommitted changes?
+	if git diff-index HEAD | read dummy; then
+		printf '%s' -dirty
+	fi
+fi
+
+# Check for svn and a svn repo.
+if rev=`svn info 2>/dev/null` ; then
+        res=`echo "${rev}" | grep '^Last Changed Rev' | awk '{print $NF}'`
+	if [ -z "$res" ] ; then
+            res=`echo "${rev}" | grep '^最后修改的版本' | awk '{print $NF}'`
+	fi
+        printf -- '-svn%s' $res
+fi
+
+if mod=`svn status -q 2>/dev/null` ; then
+        mod=`echo "${mod}" | awk '$1 ~ /^[AM]/ {printf "haha "}' | awk '{printf NF}'`
+	if [ -n "$mod" ] ; then
+                mod=`date +"%y%m%d-%H%M"`
+		printf -- '-%s-test' $mod
+
+        fi
+fi
